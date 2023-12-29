@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct Peer {
     pub name: String,       // What is this Peer called?
     pub kind: PeerKind,     // What kind of Peer is this?
@@ -31,7 +32,7 @@ impl Display for Peer {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub(crate) enum PeerKind {
     Controller,
     Instrument,
