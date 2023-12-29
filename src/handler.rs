@@ -37,8 +37,9 @@ pub(crate) async fn osc_unbundle(bundle: OscBundle) -> Result<Vec<OscPacket>> {
 
 #[async_recursion]
 /// Takes OSC-packets and unbundles them if necessary.
-/// All messages are ran through `extension::extension_filter`.
+/// If the 'extend' option is true, messages go through `extension::extension_filter`.
 async fn osc_unbundle_and_send(
+    config: Arc<Config>,
     peer_recv: &Peer,
     peer_send: &Peer,
     packet: OscPacket,
@@ -48,12 +49,15 @@ async fn osc_unbundle_and_send(
             let messages = osc_unbundle(bundle).await?;
             debug!("Packet unbundled, iterating over packets.");
             for message in messages {
-                osc_unbundle_and_send(&peer_recv, &peer_send, message).await?;
+                osc_unbundle_and_send(config.clone(), &peer_recv, &peer_send, message).await?;
             }
         }
         OscPacket::Message(message) => {
-            let message_post_filter = extension_filter(peer_recv, peer_send, message).await?;
-            send_message(&peer_send, message_post_filter).await?;
+            let message_to_send = match config.options.extend {
+                true => extension_filter(peer_recv, peer_send, message).await?,
+                false => message,
+            };
+            send_message(&peer_send, message_to_send).await?;
         }
     }
 
@@ -80,7 +84,7 @@ async fn osc_handler(config: Arc<Config>, peer_kind: PeerKind) -> async_osc::Res
     while let Some(packet) = socket.next().await {
         let (message, _) = packet?;
         debug!("Received from {peer_recv}\n {:?}", message);
-        osc_unbundle_and_send(&peer_recv, &peer_send, message).await?
+        osc_unbundle_and_send(config.clone(), &peer_recv, &peer_send, message).await?
     }
 
     Ok(())
