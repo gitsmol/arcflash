@@ -2,10 +2,10 @@
 extend = true
 
 [controller]
-name = "TouchOSC"
+name = "TouchOSC ipad"
 kind = "Controller"
-local_ip = "192.168.1.110"
-remote_ip = "192.168.1.103"
+local_ip = "192.168.1.103"
+remote_ip = "192.168.1.181"
 remote_port = "53110"
 local_port = "53100"
 
