@@ -15,7 +15,7 @@ lazy_static! {
         let mut m = HashMap::new();
         m.insert(
             "filter_type",
-            Regex::new(r"/param/./filter/./type").expect("Unable to compile regex."),
+            Regex::new(r"^/param/./filter/./type").expect("Unable to compile regex."),
         );
         m
     };

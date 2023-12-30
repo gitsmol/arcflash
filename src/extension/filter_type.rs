@@ -49,8 +49,8 @@ lazy_static! {
 
 /// Translates float to string for filter type
 pub(super) fn translate_filter_type<'a>(mut labeled: LabeledMessage<'a>) -> Result<LabeledMessage> {
-    // Translation towards a controller
     match labeled.peer_send.kind {
+        // Translation towards a controller
         PeerKind::Controller => {
             let arg = labeled
                 .message
@@ -77,6 +77,7 @@ pub(super) fn translate_filter_type<'a>(mut labeled: LabeledMessage<'a>) -> Resu
                 return Ok(labeled);
             }
         }
+        // Translation towards an instrument
         PeerKind::Instrument => {
             let arg = labeled
                 .message

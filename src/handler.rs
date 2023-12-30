@@ -95,12 +95,19 @@ async fn message_processor(
     peer_send: &Peer,
     message: OscMessage,
 ) -> Result<()> {
+    // If we don't want to use functional extensions, just pass the message on.
+    if !config.options.extend {
+        send_message(message, peer_send).await?;
+        return Ok(());
+    }
+
     let Ok(labeled_message) = message_router(config, peer_recv, peer_send, message) else {
         panic!("Message labeler failed!");
     };
     let Ok(processed_message) = labeled_message_processor(labeled_message) else {
         panic!("Message processor failed!");
     };
-    send_message(processed_message).await?;
+
+    send_message(processed_message.message, processed_message.peer_send).await?;
     Ok(())
 }
