@@ -17,4 +17,5 @@ log = "0.4"
 rand = "0.8.5"
 regex = "1.10.2"
 serde = { version = "1.0.193", features = ["derive"] }
+sys-info = "0.9.1"
 toml = "0.8.8"

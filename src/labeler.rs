@@ -2,9 +2,9 @@ use crate::{config::Config, peer::Peer};
 use async_osc::{OscMessage, Result};
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct LabeledMessage<'a> {
     pub message: OscMessage,
-    pub routing: RoutingLabel,
     pub peer_recv: &'a Peer,
     pub peer_send: &'a Peer,
 }
@@ -23,7 +23,6 @@ pub(crate) fn message_router<'a>(
 ) -> Result<LabeledMessage<'a>> {
     let mut result = LabeledMessage {
         message,
-        routing: RoutingLabel::Passthrough,
         peer_recv,
         peer_send,
     };
