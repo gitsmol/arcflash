@@ -1,9 +1,9 @@
-use crate::labeler::LabeledMessage;
+use crate::{labeler::LabeledMessage, peer::PeerKind};
 use async_osc::{prelude::OscMessageExt, OscMessage, OscType, Result};
 use lazy_static::lazy_static;
 use log::debug;
 use regex::Regex;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::RangeBounds};
 
 mod filter_type;
 
@@ -27,6 +27,24 @@ pub(crate) fn labeled_message_processor<'a>(
         return system_addr(labeled);
     }
 
+    // Handle strings with both real and normalized values
+    if labeled.peer_send.kind == PeerKind::Controller {
+        if let Some(OscType::String(valstring)) = labeled.message.args.first() {
+            if valstring.contains("(normalized)") {
+                debug!("Normalized value detected in string.");
+                if let Some(float_val) = valstring
+                    .split_whitespace()
+                    .nth_back(1)
+                    .and_then(|s| s.parse::<f32>().ok())
+                {
+                    if let Some(arg) = labeled.message.args.get_mut(0) {
+                        *arg = OscType::Float(float_val);
+                    }
+                }
+            }
+        }
+    }
+
     // Handle filter types
     if ADDR_PATTERNS
         .get("filter_type")
@@ -45,18 +63,15 @@ pub(crate) fn labeled_message_processor<'a>(
 /// System messages are always returned to the the peer they were received from.
 fn system_addr(labeled: LabeledMessage) -> Result<LabeledMessage> {
     debug!("Received system message from {}.", labeled.peer_recv);
+
+    // System average load
     if labeled.message.addr.contains("/sys/q/system_load") {
         if let Ok(load) = sys_info::loadavg() {
             let load_message = format!(
                 "1 min: {:.2}, 5 min: {:.2}, 15 min: {:.2}",
                 load.one, load.five, load.fifteen
             );
-            let mut return_message = labeled.clone();
-            return_message.peer_send = return_message.peer_recv;
-            return_message.message =
-                OscMessage::new("/sys/system_load", OscType::String(load_message));
-
-            debug!("Returning system load to {}.", return_message.peer_send);
+            let return_message = build_return_message_string(labeled, load_message);
             return Ok(return_message);
         }
     }
@@ -72,4 +87,11 @@ fn system_addr(labeled: LabeledMessage) -> Result<LabeledMessage> {
         peer_send: labeled.peer_recv,
     };
     Ok(return_message)
+}
+
+fn build_return_message_string(labeled: LabeledMessage, content: String) -> LabeledMessage {
+    let mut return_message = labeled.clone();
+    return_message.peer_send = return_message.peer_recv;
+    return_message.message = OscMessage::new("/sys/system_load", OscType::String(content));
+    return_message
 }
