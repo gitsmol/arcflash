@@ -1,71 +1,39 @@
 use std::sync::Arc;
 
-use async_osc::{OscBundle, OscMessage, OscPacket, OscSocket, Result};
+use async_osc::{OscMessage, OscPacket, OscSocket, Result};
 use async_recursion::async_recursion;
 use async_std::stream::StreamExt;
 use log::{debug, info};
-use rand::{thread_rng, Rng};
 
 use crate::{
     config::Config,
-    extension::extension_filter,
+    extension::labeled_message_processor,
+    labeler::message_router,
     peer::{Peer, PeerKind},
+    sender::{self, send_message},
 };
 
-async fn send_message(peer_send: &Peer, message: OscMessage) -> Result<()> {
-    let port = thread_rng().gen_range(8000..50_000);
-    let bind_addr = format!("{}:{}", peer_send.local_ip, port);
-    debug!(
-        "Sending message to {peer_send} from {bind_addr}\n {:?}",
-        message
-    );
+/// Spawns handlers for both peer connections.
+pub fn spawn_packet_handlers(config: Arc<Config>) {
+    info!("Spawning two UDP handlers.");
 
-    let socket = OscSocket::bind(bind_addr).await?;
-    socket.send_to(message, peer_send.remote_addr()).await?;
+    let config_clone = config.clone();
 
-    Ok(())
-}
-
-pub(crate) async fn osc_unbundle(bundle: OscBundle) -> Result<Vec<OscPacket>> {
-    let mut result: Vec<OscPacket> = Vec::new();
-    for packet in bundle.content.iter() {
-        result.push(packet.clone())
-    }
-
-    Ok(result)
-}
-
-#[async_recursion]
-/// Takes OSC-packets and unbundles them if necessary.
-/// If the 'extend' option is true, messages go through `extension::extension_filter`.
-async fn osc_unbundle_and_send(
-    config: Arc<Config>,
-    peer_recv: &Peer,
-    peer_send: &Peer,
-    packet: OscPacket,
-) -> Result<()> {
-    match packet {
-        OscPacket::Bundle(bundle) => {
-            let messages = osc_unbundle(bundle).await?;
-            debug!("Packet unbundled, iterating over packets.");
-            for message in messages {
-                osc_unbundle_and_send(config.clone(), &peer_recv, &peer_send, message).await?;
-            }
+    async_std::task::spawn(async move {
+        if let Err(e) = packet_receiver(config.clone(), PeerKind::Instrument).await {
+            panic!("Error in osc_handler: {}", e);
         }
-        OscPacket::Message(message) => {
-            let message_to_send = match config.options.extend {
-                true => extension_filter(peer_recv, peer_send, message).await?,
-                false => message,
-            };
-            send_message(&peer_send, message_to_send).await?;
+    });
+    async_std::task::block_on(async move {
+        if let Err(e) = packet_receiver(config_clone.clone(), PeerKind::Controller).await {
+            panic!("Error in osc_handler: {}", e);
         }
-    }
-
-    Ok(())
+    });
+    debug!("Shutting down.");
 }
 
 /// Handles incoming OSC packets and routes them to their destination.
-async fn osc_handler(config: Arc<Config>, peer_kind: PeerKind) -> async_osc::Result<()> {
+async fn packet_receiver(config: Arc<Config>, peer_kind: PeerKind) -> async_osc::Result<()> {
     // Get references to peers from config
     let (peer_recv, peer_send) = match peer_kind {
         PeerKind::Controller => (&config.controller, &config.instrument),
@@ -84,27 +52,55 @@ async fn osc_handler(config: Arc<Config>, peer_kind: PeerKind) -> async_osc::Res
     while let Some(packet) = socket.next().await {
         let (message, _) = packet?;
         debug!("Received from {peer_recv}\n {:?}", message);
-        osc_unbundle_and_send(config.clone(), &peer_recv, &peer_send, message).await?
+        unbundler(config.clone(), &peer_recv, &peer_send, message).await?
     }
 
     Ok(())
 }
 
-/// Spawns handlers for both peer connections.
-pub fn listening_tasks(config: Arc<Config>) {
-    info!("Spawning two UDP handlers.");
-
-    let config_clone = config.clone();
-
-    async_std::task::spawn(async move {
-        if let Err(e) = osc_handler(config.clone(), PeerKind::Instrument).await {
-            panic!("Error in osc_handler: {}", e);
+#[async_recursion]
+/// Takes OSC-packets and unbundles them if necessary. Passes unbundled messages on
+/// to the labeler for inspection and routing.
+async fn unbundler(
+    config: Arc<Config>,
+    peer_recv: &Peer,
+    peer_send: &Peer,
+    packet: OscPacket,
+) -> Result<()> {
+    let message = match packet {
+        // If the packet contains a bundle, unbundle and handle individual messages
+        OscPacket::Bundle(bundle) => {
+            let mut messages: Vec<OscPacket> = Vec::new();
+            for packet in bundle.content.iter() {
+                messages.push(packet.clone())
+            }
+            debug!("Packet unbundled, iterating over packets.");
+            for message in messages {
+                // This recurses so bundles that contain bundles get unpacked ad infinitum
+                unbundler(config.clone(), &peer_recv, &peer_send, message).await?;
+            }
         }
-    });
-    async_std::task::block_on(async move {
-        if let Err(e) = osc_handler(config_clone.clone(), PeerKind::Controller).await {
-            panic!("Error in osc_handler: {}", e);
+        // A regular message is passed to the labeler for inspection and routing.
+        OscPacket::Message(message) => {
+            message_processor(config, peer_recv, peer_send, message).await?
         }
-    });
-    debug!("Shutting down.");
+    };
+
+    Ok(())
+}
+
+async fn message_processor(
+    config: Arc<Config>,
+    peer_recv: &Peer,
+    peer_send: &Peer,
+    message: OscMessage,
+) -> Result<()> {
+    let Ok(labeled_message) = message_router(config, peer_recv, peer_send, message) else {
+        panic!("Message labeler failed!");
+    };
+    let Ok(processed_message) = labeled_message_processor(labeled_message) else {
+        panic!("Message processor failed!");
+    };
+    send_message(processed_message).await?;
+    Ok(())
 }

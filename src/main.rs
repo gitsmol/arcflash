@@ -1,14 +1,13 @@
+use crate::{config::read_config_from_file, handler::spawn_packet_handlers};
 use clap::{value_parser, Arg, Command};
-use config::read_config_from_file;
-
 use std::{path::PathBuf, sync::Arc};
-
-use crate::handler::listening_tasks;
 
 mod config;
 mod extension;
 mod handler;
+mod labeler;
 mod peer;
+mod sender;
 
 fn main() {
     let matches = Command::new("Arcflash")
@@ -51,5 +50,5 @@ fn main() {
     println!("{:?}", config);
     let config = Arc::new(config);
 
-    listening_tasks(config)
+    spawn_packet_handlers(config)
 }
