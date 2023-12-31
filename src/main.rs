@@ -1,5 +1,7 @@
 use crate::{config::read_config_from_file, handler::spawn_packet_handlers};
-use clap::{value_parser, Arg, Command};
+use clap::{value_parser, Arg, ArgMatches, Command};
+use config::Config;
+use log::info;
 use std::{path::PathBuf, sync::Arc};
 
 mod config;
@@ -8,9 +10,60 @@ mod handler;
 mod labeler;
 mod peer;
 mod sender;
+mod tests;
 
 fn main() {
-    let matches = Command::new("Arcflash")
+    let matches = read_command_line_args();
+    init_logger(&matches);
+    let config = create_config_arc(&matches);
+
+    // Will proceed with tests and not run main program.
+    run_tests(&matches);
+
+    spawn_packet_handlers(config)
+}
+
+/// Startup logging and handle output to file
+fn init_logger(matches: &ArgMatches) {
+    if let Some(log_file) = matches.get_one::<PathBuf>("log_to_file") {
+        let log_path = PathBuf::from(log_file);
+        let file = std::fs::File::create(log_path).unwrap();
+        let env = env_logger::Env::default();
+        env_logger::Builder::from_env(env)
+            .target(env_logger::Target::Pipe(Box::new(file)))
+            .init();
+    } else {
+        env_logger::init();
+    }
+}
+
+/// Create a config struct from file
+fn create_config_arc(matches: &ArgMatches) -> Arc<Config> {
+    let Some(config_file_path) = matches.get_one::<PathBuf>("config_file") else {
+        panic!("Can't find config file!")
+    };
+    let mut config = match read_config_from_file(config_file_path) {
+        Ok(config) => config,
+        Err(e) => panic!("Error reading config file: {}", e),
+    };
+
+    if let Some(value) = matches.get_one::<bool>("extend") {
+        config.options.extend = *value;
+    }
+
+    info!("Launching with config {:?}", config);
+    Arc::new(config)
+}
+
+fn run_tests(matches: &ArgMatches) {
+    if let Some(value) = matches.get_one::<bool>("test") {
+        tests::test_q_all_params();
+    }
+}
+
+/// Read command line args into matches
+fn read_command_line_args() -> ArgMatches {
+    Command::new("Arcflash")
         .version("0.1")
         .author("Geert Smolders <geert@polyprax.nl>")
         .about("Manages OSC connections between TouchOSC and Surge")
@@ -40,35 +93,14 @@ fn main() {
                 .value_parser(value_parser!(PathBuf))
                 .help("Log archflash output to file."),
         )
-        .get_matches();
-
-    // use std::env;
-
-    if let Some(log_file) = matches.get_one::<PathBuf>("log_to_file") {
-        let log_path = PathBuf::from(log_file);
-        let file = std::fs::File::create(log_path).unwrap();
-        let env = env_logger::Env::default();
-        env_logger::Builder::from_env(env)
-            .target(env_logger::Target::Pipe(Box::new(file)))
-            .init();
-    } else {
-        env_logger::init();
-    }
-
-    let Some(config_file_path) = matches.get_one::<PathBuf>("config_file") else {
-        panic!("Can't parse config file argument!")
-    };
-    let mut config = match read_config_from_file(config_file_path) {
-        Ok(config) => config,
-        Err(e) => panic!("Error reading config file: {}", e),
-    };
-
-    if let Some(value) = matches.get_one::<bool>("extend") {
-        config.options.extend = *value;
-    }
-
-    println!("{:?}", config);
-    let config = Arc::new(config);
-
-    spawn_packet_handlers(config)
+        .arg(
+            Arg::new("test")
+                .short('t')
+                .long("tests")
+                .value_name("false")
+                .default_value("false")
+                .value_parser(value_parser!(bool))
+                .help("Perform tests on OSC peers and arcflash throughput."),
+        )
+        .get_matches()
 }
