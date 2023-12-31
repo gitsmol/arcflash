@@ -31,9 +31,29 @@ fn main() {
                 .value_parser(value_parser!(PathBuf))
                 .help("Extends the Surge OSC spec to provide additional features."),
         )
+        .arg(
+            Arg::new("log_to_file")
+                .short('l')
+                .long("log-file")
+                .value_name("arcflash.log")
+                // .default_value("./arcflash.log")
+                .value_parser(value_parser!(PathBuf))
+                .help("Log archflash output to file."),
+        )
         .get_matches();
 
-    env_logger::init();
+    // use std::env;
+
+    if let Some(log_file) = matches.get_one::<PathBuf>("log_to_file") {
+        let log_path = PathBuf::from(log_file);
+        let file = std::fs::File::create(log_path).unwrap();
+        let env = env_logger::Env::default();
+        env_logger::Builder::from_env(env)
+            .target(env_logger::Target::Pipe(Box::new(file)))
+            .init();
+    } else {
+        env_logger::init();
+    }
 
     let Some(config_file_path) = matches.get_one::<PathBuf>("config_file") else {
         panic!("Can't parse config file argument!")
