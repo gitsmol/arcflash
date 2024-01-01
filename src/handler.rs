@@ -75,7 +75,12 @@ fn thread_packet_handler(
             } else {
                 if let Some(packet) = buffer.pop_front() {
                     debug!("Packet taken from buffer: {:?}", packet);
-                    unbundler(config.clone(), peer_recv.clone(), peer_send.clone(), packet);
+                    let config = config.clone();
+                    let peer_recv = peer_recv.clone();
+                    let peer_send = peer_send.clone();
+                    async_std::task::spawn(async move {
+                        unbundler(config, peer_recv, peer_send, packet).await
+                    });
                     debug!("Buffer size: {}", buffer.len());
                 }
             };
@@ -104,13 +109,12 @@ async fn packet_inbound_buffer(
 // #[async_recursion]
 /// Takes OSC-packets and unbundles them if necessary. Passes unbundled messages on
 /// to the labeler for inspection and routing.
-fn unbundler(
+async fn unbundler(
     config: Arc<Config>,
     peer_recv: Arc<Peer>,
     peer_send: Arc<Peer>,
     packet: OscPacket,
 ) -> Result<()> {
-    debug!("Packet reached unbundler");
     match packet {
         // If the packet contains a bundle, unbundle and handle individual messages
         OscPacket::Bundle(bundle) => {
