@@ -1,31 +1,21 @@
-use crate::{config::Config, peer::Peer};
-use async_osc::{OscMessage, Result};
 use std::sync::Arc;
 
+use crate::peer::Peer;
+use async_osc::OscMessage;
+
 #[derive(Clone)]
-pub struct LabeledMessage<'a> {
+pub struct LabeledMessage {
     pub message: OscMessage,
-    pub peer_recv: &'a Peer,
-    pub peer_send: &'a Peer,
+    pub peer_recv: Arc<Peer>,
+    pub peer_send: Arc<Peer>,
 }
 
-pub enum RoutingLabel {
-    Passthrough,
-    Return,
-}
-
-/// The router labels all packages
-pub(crate) fn message_router<'a>(
-    config: Arc<Config>,
-    peer_recv: &'a Peer,
-    peer_send: &'a Peer,
-    message: OscMessage,
-) -> Result<LabeledMessage<'a>> {
-    let mut result = LabeledMessage {
-        message,
-        peer_recv,
-        peer_send,
-    };
-
-    Ok(result)
+impl LabeledMessage {
+    pub fn new(peer_recv: Arc<Peer>, peer_send: Arc<Peer>, message: OscMessage) -> Self {
+        Self {
+            message,
+            peer_recv,
+            peer_send,
+        }
+    }
 }

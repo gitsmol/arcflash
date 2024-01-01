@@ -1,4 +1,4 @@
-use crate::{config::read_config_from_file, handler::spawn_packet_handlers};
+use crate::{config::read_config_from_file, handler::thread_peer_handler, peer::PeerKind};
 use clap::{value_parser, Arg, ArgMatches, Command};
 use config::Config;
 use log::info;
@@ -20,7 +20,15 @@ fn main() {
     // Will proceed with tests and not run main program.
     run_tests(&matches);
 
-    spawn_packet_handlers(config)
+    info!("Spawning handler threads.");
+
+    // Threads for the packets coming from peers
+    let t1 = thread_peer_handler(config.clone(), PeerKind::Instrument);
+    let t2 = thread_peer_handler(config.clone(), PeerKind::Controller);
+
+    while !t1.is_finished() && !t2.is_finished() {}
+
+    info!("Shutting down.");
 }
 
 /// Startup logging and handle output to file
@@ -57,7 +65,9 @@ fn create_config_arc(matches: &ArgMatches) -> Arc<Config> {
 
 fn run_tests(matches: &ArgMatches) {
     if let Some(value) = matches.get_one::<bool>("test") {
-        tests::test_q_all_params();
+        if value == &true {
+            tests::test_q_all_params();
+        }
     }
 }
 

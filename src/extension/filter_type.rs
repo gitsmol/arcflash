@@ -1,11 +1,8 @@
-use crate::{
-    labeler::LabeledMessage,
-    peer::{Peer, PeerKind},
-};
-use async_osc::{prelude::OscMessageExt, OscMessage, OscType, Result};
+use crate::{labeler::LabeledMessage, peer::PeerKind};
+use async_osc::{OscType, Result};
 use lazy_static::lazy_static;
 use log::debug;
-use regex::Regex;
+
 use std::collections::HashMap;
 
 lazy_static! {
@@ -48,7 +45,7 @@ lazy_static! {
 }
 
 /// Translates float to string for filter type
-pub(super) fn translate_filter_type<'a>(mut labeled: LabeledMessage<'a>) -> Result<LabeledMessage> {
+pub(super) fn translate_filter_type(mut labeled: LabeledMessage) -> Result<LabeledMessage> {
     match labeled.peer_send.kind {
         // Translation towards a controller
         PeerKind::Controller => {

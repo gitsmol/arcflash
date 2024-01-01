@@ -1,13 +1,10 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
-use async_osc::{OscSocket, Result};
+use async_osc::OscSocket;
 use async_std::stream::StreamExt;
 use log::debug;
 
-use crate::{
-    config::{read_config_from_file, Config},
-    peer::PeerKind,
-};
+use crate::config::{read_config_from_file, Config};
 
 pub(crate) fn test_q_all_params() {
     let config_file = PathBuf::from("./config.toml");
@@ -22,8 +19,7 @@ pub(crate) fn test_q_all_params() {
 async fn packet_counter(config: Config, count: &mut usize) -> async_osc::Result<()> {
     let mut socket = OscSocket::bind(config.instrument.listen_addr()).await?;
     // Listen for incoming packets on the socket.
-    while let Some(packet) = socket.next().await {
-        let (message, _) = packet?;
+    while let Some(_) = socket.next().await {
         *count += 1;
         debug!("Received {count} messages.");
     }

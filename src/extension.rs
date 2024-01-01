@@ -3,7 +3,7 @@ use async_osc::{prelude::OscMessageExt, OscMessage, OscType, Result};
 use lazy_static::lazy_static;
 use log::debug;
 use regex::Regex;
-use std::{collections::HashMap, ops::RangeBounds};
+use std::collections::HashMap;
 
 mod filter_type;
 
@@ -19,9 +19,7 @@ lazy_static! {
 }
 
 /// Inspect messages and route them accordingly. Returns messages after potential alterations.
-pub(crate) fn labeled_message_processor<'a>(
-    mut labeled: LabeledMessage<'a>,
-) -> Result<LabeledMessage> {
+pub(crate) fn labeled_message_processor(mut labeled: LabeledMessage) -> Result<LabeledMessage> {
     // Handle system messages
     if labeled.message.addr.contains("/sys/") {
         return system_addr(labeled);
@@ -71,7 +69,8 @@ fn system_addr(labeled: LabeledMessage) -> Result<LabeledMessage> {
                 "1 min: {:.2}, 5 min: {:.2}, 15 min: {:.2}",
                 load.one, load.five, load.fifteen
             );
-            let return_message = build_return_message_string(labeled, load_message);
+            let addr = String::from("/sys/system_load");
+            let return_message = build_return_message_string(labeled, addr, load_message);
             return Ok(return_message);
         }
     }
@@ -83,15 +82,19 @@ fn system_addr(labeled: LabeledMessage) -> Result<LabeledMessage> {
             "/sys/debug",
             OscType::String(String::from("Unknown address.")),
         ),
-        peer_recv: labeled.peer_recv,
-        peer_send: labeled.peer_recv,
+        peer_recv: labeled.peer_recv.clone(),
+        peer_send: labeled.peer_recv.clone(),
     };
     Ok(return_message)
 }
 
-fn build_return_message_string(labeled: LabeledMessage, content: String) -> LabeledMessage {
+fn build_return_message_string(
+    labeled: LabeledMessage,
+    addr: String,
+    content: String,
+) -> LabeledMessage {
     let mut return_message = labeled.clone();
-    return_message.peer_send = return_message.peer_recv;
-    return_message.message = OscMessage::new("/sys/system_load", OscType::String(content));
+    return_message.peer_send = return_message.peer_recv.clone();
+    return_message.message = OscMessage::new(addr, OscType::String(content));
     return_message
 }
