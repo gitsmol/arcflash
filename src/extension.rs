@@ -19,7 +19,9 @@ lazy_static! {
 }
 
 /// Inspect messages and route them accordingly. Returns messages after potential alterations.
-pub(crate) fn labeled_message_processor(mut labeled: LabeledMessage) -> Result<LabeledMessage> {
+pub(crate) async fn labeled_message_processor(
+    mut labeled: LabeledMessage,
+) -> Result<LabeledMessage> {
     // Handle system messages
     if labeled.message.addr.contains("/sys/") {
         return system_addr(labeled);

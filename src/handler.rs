@@ -1,12 +1,10 @@
 use std::{
     collections::VecDeque,
-    ops::Deref,
     sync::{
         mpsc::{channel, Receiver, Sender},
         Arc,
     },
     thread::{self},
-    time::Duration,
 };
 
 use async_osc::{OscMessage, OscPacket, OscSocket, Result};
@@ -74,14 +72,12 @@ fn thread_packet_handler(
                 debug!("Buffer size: {}", buffer.len());
             } else {
                 if let Some(packet) = buffer.pop_front() {
-                    debug!("Packet taken from buffer: {:?}", packet);
                     let config = config.clone();
                     let peer_recv = peer_recv.clone();
                     let peer_send = peer_send.clone();
                     async_std::task::spawn(async move {
-                        unbundler(config, peer_recv, peer_send, packet).await
+                        unbundler(config, peer_recv.clone(), peer_send.clone(), packet).await;
                     });
-                    debug!("Buffer size: {}", buffer.len());
                 }
             };
         }
@@ -106,7 +102,7 @@ async fn packet_inbound_buffer(
     Ok(())
 }
 
-// #[async_recursion]
+#[async_recursion]
 /// Takes OSC-packets and unbundles them if necessary. Passes unbundled messages on
 /// to the labeler for inspection and routing.
 async fn unbundler(
@@ -130,14 +126,15 @@ async fn unbundler(
                     peer_recv.clone(),
                     peer_send.clone(),
                     message,
-                );
+                )
+                .await;
             }
         }
         // A regular message is passed to the labeler for inspection and routing.
         OscPacket::Message(message) => {
             // If we don't want to use functional extensions, just pass the message on.
             match config.options.extend {
-                true => message_processor(peer_recv, peer_send, message)?,
+                true => message_processor(peer_recv, peer_send, message).await?,
                 false => {
                     async_std::task::spawn(async move {
                         send_message(message, peer_send).await;
@@ -150,19 +147,18 @@ async fn unbundler(
     Ok(())
 }
 
-fn message_processor(
+async fn message_processor(
     peer_recv: Arc<Peer>,
     peer_send: Arc<Peer>,
     message: OscMessage,
 ) -> Result<()> {
     let labeled_message = LabeledMessage::new(peer_recv, peer_send, message);
 
-    let Ok(processed_message) = labeled_message_processor(labeled_message) else {
+    let Ok(processed_message) = labeled_message_processor(labeled_message).await else {
         panic!("Message processor failed!");
     };
 
-    async_std::task::spawn(async move {
-        send_message(processed_message.message, processed_message.peer_send).await;
-    });
+    send_message(processed_message.message, processed_message.peer_send).await;
+
     Ok(())
 }

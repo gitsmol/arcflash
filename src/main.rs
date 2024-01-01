@@ -66,6 +66,7 @@ fn create_config_arc(matches: &ArgMatches) -> Arc<Config> {
 fn run_tests(matches: &ArgMatches) {
     if let Some(value) = matches.get_one::<bool>("test") {
         if value == &true {
+            info!("Running tests.");
             tests::test_q_all_params();
         }
     }
