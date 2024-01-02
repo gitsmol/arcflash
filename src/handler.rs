@@ -60,9 +60,11 @@ fn message_processor(
 ) -> Result<(), io::Error> {
     let labeled_message = LabeledMessage::new(peer_recv, peer_send, message);
 
-    let processed_message = extension_processor(labeled_message)?;
+    let processed_message = extension_processor(labeled_message)
+        .map_err(|e| io::Error::new(e.kind(), format!("Error in extension processor: {}", e)))?;
 
-    send_message(processed_message.message, processed_message.peer_send)?;
+    send_message(processed_message.message, processed_message.peer_send)
+        .map_err(|e| io::Error::new(e.kind(), format!("Error sending message: {}", e)))?;
 
     Ok(())
 }
