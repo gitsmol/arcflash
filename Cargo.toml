@@ -6,16 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-osc = "0.2.0"
-async-recursion = "1.0.5"
-async-std = "1.12.0"
 chrono = "0.4.31"
 clap = "4.4.12"
 env_logger = "0.10.1"
+flume = "0.11.0"
 lazy_static = "1.4.0"
 log = "0.4"
 rand = "0.8.5"
 regex = "1.10.2"
+rosc = "0.10.1"
 serde = { version = "1.0.193", features = ["derive"] }
 sys-info = "0.9.1"
 toml = "0.8.8"

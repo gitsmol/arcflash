@@ -1,9 +1,10 @@
+use crate::osc;
 use crate::{labeler::LabeledMessage, peer::PeerKind};
-use async_osc::{prelude::OscMessageExt, OscMessage, OscType, Result};
 use lazy_static::lazy_static;
 use log::debug;
 use regex::Regex;
 use std::collections::HashMap;
+use std::io;
 
 mod filter_type;
 
@@ -19,9 +20,9 @@ lazy_static! {
 }
 
 /// Inspect messages and route them accordingly. Returns messages after potential alterations.
-pub(crate) async fn labeled_message_processor(
+pub(crate) fn extension_processor(
     mut labeled: LabeledMessage,
-) -> Result<LabeledMessage> {
+) -> Result<LabeledMessage, io::Error> {
     // Handle system messages
     if labeled.message.addr.contains("/sys/") {
         return system_addr(labeled);
@@ -29,7 +30,7 @@ pub(crate) async fn labeled_message_processor(
 
     // Handle strings with both real and normalized values
     if labeled.peer_send.kind == PeerKind::Controller {
-        if let Some(OscType::String(valstring)) = labeled.message.args.first() {
+        if let Some(osc::Type::String(valstring)) = labeled.message.args.first() {
             if valstring.contains("(normalized)") {
                 debug!("Normalized value detected in string.");
                 if let Some(float_val) = valstring
@@ -38,7 +39,7 @@ pub(crate) async fn labeled_message_processor(
                     .and_then(|s| s.parse::<f32>().ok())
                 {
                     if let Some(arg) = labeled.message.args.get_mut(0) {
-                        *arg = OscType::Float(float_val);
+                        *arg = osc::Type::Float(float_val);
                     }
                 }
             }
@@ -61,7 +62,7 @@ pub(crate) async fn labeled_message_processor(
 /// If the packet router runs on the system the instrument runs on, then system
 /// diagnostics from the router can be used to indicate the instruments health too.
 /// System messages are always returned to the the peer they were received from.
-fn system_addr(labeled: LabeledMessage) -> Result<LabeledMessage> {
+fn system_addr(labeled: LabeledMessage) -> Result<LabeledMessage, io::Error> {
     debug!("Received system message from {}.", labeled.peer_recv);
 
     // System average load
@@ -80,10 +81,11 @@ fn system_addr(labeled: LabeledMessage) -> Result<LabeledMessage> {
     // If we can't match any addresses, return a not found message.
     debug!("Unable to match system message to address.");
     let return_message = LabeledMessage {
-        message: OscMessage::new(
-            "/sys/debug",
-            OscType::String(String::from("Unknown address.")),
-        ),
+        message: osc::Message {
+            addr: String::from("/sys/debug"),
+            args: vec![osc::Type::String(String::from("Unknown address."))],
+        },
+
         peer_recv: labeled.peer_recv.clone(),
         peer_send: labeled.peer_recv.clone(),
     };
@@ -97,6 +99,9 @@ fn build_return_message_string(
 ) -> LabeledMessage {
     let mut return_message = labeled.clone();
     return_message.peer_send = return_message.peer_recv.clone();
-    return_message.message = OscMessage::new(addr, OscType::String(content));
+    return_message.message = osc::Message {
+        addr,
+        args: vec![osc::Type::String(content)],
+    };
     return_message
 }

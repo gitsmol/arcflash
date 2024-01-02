@@ -1,9 +1,10 @@
+use crate::osc;
 use crate::{labeler::LabeledMessage, peer::PeerKind};
-use async_osc::{OscType, Result};
 use lazy_static::lazy_static;
 use log::debug;
 
 use std::collections::HashMap;
+use std::io;
 
 lazy_static! {
     static ref FILTERTYPES: HashMap<i32, String> = HashMap::from([
@@ -45,7 +46,9 @@ lazy_static! {
 }
 
 /// Translates float to string for filter type
-pub(super) fn translate_filter_type(mut labeled: LabeledMessage) -> Result<LabeledMessage> {
+pub(super) fn translate_filter_type(
+    mut labeled: LabeledMessage,
+) -> Result<LabeledMessage, io::Error> {
     match labeled.peer_send.kind {
         // Translation towards a controller
         PeerKind::Controller => {
@@ -55,12 +58,12 @@ pub(super) fn translate_filter_type(mut labeled: LabeledMessage) -> Result<Label
                 .first()
                 .expect("Can't find first argument!");
             let arg_value = match arg {
-                async_osc::OscType::Int(res) => *res,
-                async_osc::OscType::Float(res) => *res as i32,
-                async_osc::OscType::String(s) => s.parse::<i32>().unwrap_or_default(),
-                async_osc::OscType::Long(l) => *l as i32,
-                async_osc::OscType::Double(d) => *d as i32,
-                async_osc::OscType::Char(c) => *c as i32,
+                osc::Type::Int(res) => *res,
+                osc::Type::Float(res) => *res as i32,
+                osc::Type::String(s) => s.parse::<i32>().unwrap_or_default(),
+                osc::Type::Long(l) => *l as i32,
+                osc::Type::Double(d) => *d as i32,
+                osc::Type::Char(c) => *c as i32,
                 // Any other type means we don't know what to do so just pass the message on
                 _ => {
                     return Ok(labeled);
@@ -69,7 +72,7 @@ pub(super) fn translate_filter_type(mut labeled: LabeledMessage) -> Result<Label
             if let Some(value) = FILTERTYPES.get(&arg_value) {
                 debug!("Translated filter type for {}", labeled.peer_send.kind);
                 if let Some(arg) = labeled.message.args.get_mut(0) {
-                    *arg = OscType::String(value.to_owned());
+                    *arg = osc::Type::String(value.to_owned());
                 };
                 return Ok(labeled);
             }
@@ -82,7 +85,7 @@ pub(super) fn translate_filter_type(mut labeled: LabeledMessage) -> Result<Label
                 .first()
                 .expect("Can't find first argument!");
             let arg_value = match arg {
-                async_osc::OscType::String(s) => s,
+                osc::Type::String(s) => s,
                 // Any other type means we don't know what to do so just pass the message on
                 _ => {
                     return Ok(labeled);
@@ -91,7 +94,7 @@ pub(super) fn translate_filter_type(mut labeled: LabeledMessage) -> Result<Label
             if let Some(value) = reverse_lookup(arg_value) {
                 debug!("Translated filter type for {}", labeled.peer_send.kind);
                 if let Some(arg) = labeled.message.args.get_mut(0) {
-                    *arg = OscType::Int(value);
+                    *arg = osc::Type::Int(value);
                 };
                 return Ok(labeled);
             }

@@ -1,4 +1,4 @@
-use crate::{config::read_config_from_file, handler::thread_peer_handler, peer::PeerKind};
+use crate::{config::read_config_from_file, handler::spawn_handler, peer::PeerKind};
 use clap::{value_parser, Arg, ArgMatches, Command};
 use config::Config;
 use log::info;
@@ -8,6 +8,7 @@ mod config;
 mod extension;
 mod handler;
 mod labeler;
+mod osc;
 mod peer;
 mod sender;
 mod tests;
@@ -23,8 +24,8 @@ fn main() {
     info!("Spawning handler threads.");
 
     // Threads for the packets coming from peers
-    let t1 = thread_peer_handler(config.clone(), PeerKind::Instrument);
-    let t2 = thread_peer_handler(config.clone(), PeerKind::Controller);
+    let t1 = spawn_handler(config.clone(), PeerKind::Instrument);
+    let t2 = spawn_handler(config.clone(), PeerKind::Controller);
 
     while !t1.is_finished() && !t2.is_finished() {}
 
@@ -67,7 +68,8 @@ fn run_tests(matches: &ArgMatches) {
     if let Some(value) = matches.get_one::<bool>("test") {
         if value == &true {
             info!("Running tests.");
-            tests::test_q_all_params();
+            panic!("Not implemented.")
+            // tests::test_q_all_params();
         }
     }
 }

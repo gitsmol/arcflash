@@ -1,31 +1,32 @@
 use std::{path::PathBuf, sync::Arc};
 
-use async_osc::{prelude::OscMessageExt, OscMessage, OscSocket, OscType};
-use async_std::stream::StreamExt;
 use log::debug;
 
 use crate::{
     config::{read_config_from_file, Config},
     sender,
 };
-
+/*
 pub(crate) fn test_q_all_params() {
     let config_file = PathBuf::from("./config.toml");
     let config = Arc::new(read_config_from_file(&config_file).unwrap());
 
     let config_ = config.clone();
 
+    let timer = async_std::task::sleep(std::time::Duration::from_secs(3));
     let packet_counter_task = async_std::task::spawn(async move {
         let mut packet_count = 0;
         packet_counter(config.clone(), &mut packet_count).await;
+        println!()
     });
 
     async_std::task::spawn(async move { req_all_params(config_).await });
+
     loop {}
 }
 
 async fn packet_counter(config: Arc<Config>, count: &mut usize) -> async_osc::Result<()> {
-    let mut socket = OscSocket::bind(config.instrument.listen_addr()).await?;
+    let mut socket = OscSocket::bind(config.instrument.local_addr()).await?;
     // Listen for incoming packets on the socket.
     while let Some(_) = socket.next().await {
         *count += 1;
@@ -51,3 +52,4 @@ async fn random_patch() -> async_osc::Result<()> {
     socket.send_to(message, "192.168.1.103:53100").await?;
     Ok(())
 }
+ */

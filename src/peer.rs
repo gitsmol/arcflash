@@ -17,7 +17,7 @@ impl Peer {
         format!("{}:{}", self.remote_ip, self.remote_port)
     }
 
-    pub(crate) fn listen_addr(&self) -> String {
+    pub(crate) fn local_addr(&self) -> String {
         format!("{}:{}", self.local_ip, self.local_port)
     }
 }

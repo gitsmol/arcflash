@@ -1,12 +1,15 @@
-use std::sync::Arc;
+use crate::osc;
+use std::{
+    io::{self, Error, ErrorKind},
+    sync::Arc,
+};
 
-use async_osc::{OscMessage, OscSocket, Result};
 use log::debug;
 use rand::{thread_rng, Rng};
 
 use crate::peer::Peer;
 
-pub(crate) async fn send_message(message: OscMessage, peer_send: Arc<Peer>) -> Result<()> {
+pub(crate) fn send_message(message: osc::Message, peer_send: Arc<Peer>) -> Result<(), io::Error> {
     let port = thread_rng().gen_range(8000..50_000);
     let bind_addr = format!("{}:{}", peer_send.local_ip, port);
     debug!(
@@ -14,8 +17,9 @@ pub(crate) async fn send_message(message: OscMessage, peer_send: Arc<Peer>) -> R
         peer_send, bind_addr, message
     );
 
-    let socket = OscSocket::bind(bind_addr).await?;
-    socket.send_to(message, peer_send.remote_addr()).await?;
-
-    Ok(())
+    let sender = osc::sender(peer_send.local_addr())?;
+    match sender.send(message, peer_send.remote_addr()) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(Error::new(ErrorKind::Interrupted, e.to_string())),
+    }
 }
