@@ -1,7 +1,7 @@
 use crate::{config::read_config_from_file, handler::spawn_handler, peer::PeerKind};
 use clap::{value_parser, Arg, ArgMatches, Command};
 use config::Config;
-use log::info;
+use log::{info, warn};
 use std::{path::PathBuf, sync::Arc};
 
 mod config;
@@ -27,7 +27,12 @@ fn main() {
     let t1 = spawn_handler(config.clone(), PeerKind::Instrument);
     let t2 = spawn_handler(config.clone(), PeerKind::Controller);
 
-    while !t1.is_finished() && !t2.is_finished() {}
+    if t1.join().is_err() {
+        warn!("Thread 1 error.")
+    };
+    if t2.join().is_err() {
+        warn!("Thread 2 error.")
+    };
 
     info!("Shutting down.");
 }

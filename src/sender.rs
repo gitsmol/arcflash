@@ -5,7 +5,6 @@ use std::{
 };
 
 use log::debug;
-use rand::{thread_rng, Rng};
 
 use crate::peer::Peer;
 

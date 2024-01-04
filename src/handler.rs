@@ -1,4 +1,4 @@
-use log::{info, warn};
+use log::{debug, info, warn};
 
 use crate::{
     extension::extension_processor,
@@ -26,10 +26,11 @@ pub fn spawn_handler(config: Arc<Config>, peer_kind: PeerKind) -> JoinHandle<()>
     std::thread::spawn(move || {
         let recv_local =
             receiver(peer_recv.local_addr(), 1024).expect("Failed to bind receiver to local ip.");
-        info!("Receiver thread started for {}", peer_recv.local_addr());
+        info!("Receiver thread starting for {}", peer_recv.local_addr());
+
         while let Ok((packet, _)) = recv_local.recv() {
             match packet_sorter(config.clone(), peer_recv.clone(), peer_send.clone(), packet) {
-                Ok(_) => (),
+                Ok(_) => {}
                 Err(e) => warn!("Error handling packet: {}", e),
             };
         }
