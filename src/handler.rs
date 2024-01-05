@@ -11,6 +11,10 @@ use std::{io, sync::Arc, thread::JoinHandle};
 
 use crate::config::Config;
 
+pub fn spawn_worker(worker_rx: Receiver<Packet>) -> JoinHandle<()> {
+    std::thread::spawn(move || {})
+}
+
 pub fn spawn_handler(config: Arc<Config>, peer_kind: PeerKind) -> JoinHandle<()> {
     let (peer_recv, peer_send) = match peer_kind {
         PeerKind::Controller => (
@@ -23,23 +27,29 @@ pub fn spawn_handler(config: Arc<Config>, peer_kind: PeerKind) -> JoinHandle<()>
         ),
     };
 
+    // For debugging
     let mut packages_received: usize = 0;
 
+    // Spawn the thread that handles incoming packages
     std::thread::spawn(move || {
         let recv_local =
             receiver(peer_recv.local_addr(), 1024).expect("Failed to bind receiver to local ip.");
         info!("Receiver thread starting for {}", peer_recv.local_addr());
 
         while let Ok((packet, _)) = recv_local.recv() {
+            // During a dryrun we only log the packagecount but don't actually handle packages.
+            if config.options.dryrun {
+                packages_received += 1;
+                debug!(
+                    "Packages received from {}: {}",
+                    peer_kind, packages_received
+                );
+                continue;
+            }
             match packet_sorter(config.clone(), peer_recv.clone(), peer_send.clone(), packet) {
                 Ok(_) => {}
                 Err(e) => warn!("Error handling packet: {}", e),
             };
-            packages_received += 1;
-            info!(
-                "Packages received on {} thread: {}",
-                peer_kind, packages_received
-            );
         }
     })
 }

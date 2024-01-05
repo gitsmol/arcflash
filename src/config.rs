@@ -7,6 +7,7 @@ use std::path::PathBuf;
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Options {
     pub extend: bool,
+    pub dryrun: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

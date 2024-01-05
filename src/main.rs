@@ -65,6 +65,10 @@ fn create_config_arc(matches: &ArgMatches) -> Arc<Config> {
         config.options.extend = *value;
     }
 
+    if let Some(value) = matches.get_one::<bool>("dry") {
+        config.options.dryrun = *value;
+    }
+
     info!("Launching with config {:?}", config);
     Arc::new(config)
 }
@@ -119,6 +123,15 @@ fn read_command_line_args() -> ArgMatches {
                 .default_value("false")
                 .value_parser(value_parser!(bool))
                 .help("Perform tests on OSC peers and arcflash throughput."),
+        )
+        .arg(
+            Arg::new("dryrun")
+                .short('d')
+                .long("dry-run")
+                .value_name("false")
+                .default_value("false")
+                .value_parser(value_parser!(bool))
+                .help("Only receive messages don't send anything."),
         )
         .get_matches()
 }
