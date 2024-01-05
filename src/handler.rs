@@ -58,7 +58,7 @@ pub fn spawn_handler(config: Arc<Config>, peer_kind: PeerKind) -> JoinHandle<()>
                         Err(e) => warn!("Error handling packet: {}", e),
                     };
                 }
-                Err(e) => panic!("{}", e.to_string()),
+                Err(e) => warn!("Failed to receive packet: {}", e.to_string()),
             }
         }
     })
@@ -86,6 +86,8 @@ fn message_processor(
     peer_send: Arc<Peer>,
     message: osc::Message,
 ) -> Result<(), io::Error> {
+    debug!("Received message from {peer_recv}: {:?}", message);
+
     let labeled_message = LabeledMessage::new(peer_recv, peer_send, message);
 
     let processed_message = extension_processor(labeled_message)
