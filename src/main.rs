@@ -62,10 +62,12 @@ fn create_config_arc(matches: &ArgMatches) -> Arc<Config> {
     };
 
     if let Some(value) = matches.get_one::<bool>("extend") {
+        info!("Extended features enabled.");
         config.options.extend = *value;
     }
 
     if let Some(value) = matches.get_one::<bool>("dry") {
+        info!("Dryrun mode enabled.");
         config.options.dryrun = *value;
     }
 
