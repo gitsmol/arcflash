@@ -36,20 +36,30 @@ pub fn spawn_handler(config: Arc<Config>, peer_kind: PeerKind) -> JoinHandle<()>
             receiver(peer_recv.local_addr(), 1024).expect("Failed to bind receiver to local ip.");
         info!("Receiver thread starting for {}", peer_recv.local_addr());
 
-        while let Ok((packet, _)) = recv_local.recv() {
-            // During a dryrun we only log the packagecount but don't actually handle packages.
-            if config.options.dryrun {
-                packages_received += 1;
-                debug!(
-                    "Packages received from {}: {}",
-                    peer_kind, packages_received
-                );
-                continue;
+        loop {
+            match recv_local.recv() {
+                Ok((packet, _)) => {
+                    // During a dryrun we only log the packagecount but don't actually handle packages.
+                    if config.options.dryrun {
+                        packages_received += 1;
+                        debug!(
+                            "Packages received from {}: {}",
+                            peer_kind, packages_received
+                        );
+                        continue;
+                    }
+                    match packet_sorter(
+                        config.clone(),
+                        peer_recv.clone(),
+                        peer_send.clone(),
+                        packet,
+                    ) {
+                        Ok(_) => {}
+                        Err(e) => warn!("Error handling packet: {}", e),
+                    };
+                }
+                Err(e) => panic!("{}", e.to_string()),
             }
-            match packet_sorter(config.clone(), peer_recv.clone(), peer_send.clone(), packet) {
-                Ok(_) => {}
-                Err(e) => warn!("Error handling packet: {}", e),
-            };
         }
     })
 }
