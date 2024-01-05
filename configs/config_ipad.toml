@@ -1,5 +1,6 @@
 [options]
 extend = true
+dryrun = false
 
 [controller]
 name = "TouchOSC ipad"

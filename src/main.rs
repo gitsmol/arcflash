@@ -66,7 +66,7 @@ fn create_config_arc(matches: &ArgMatches) -> Arc<Config> {
         config.options.extend = *value;
     }
 
-    if let Some(value) = matches.get_one::<bool>("dry") {
+    if let Some(value) = matches.get_one::<bool>("dryrun") {
         info!("Dryrun mode enabled.");
         config.options.dryrun = *value;
     }
