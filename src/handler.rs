@@ -23,6 +23,8 @@ pub fn spawn_handler(config: Arc<Config>, peer_kind: PeerKind) -> JoinHandle<()>
         ),
     };
 
+    let mut packages_received: usize = 0;
+
     std::thread::spawn(move || {
         let recv_local =
             receiver(peer_recv.local_addr(), 1024).expect("Failed to bind receiver to local ip.");
@@ -33,6 +35,11 @@ pub fn spawn_handler(config: Arc<Config>, peer_kind: PeerKind) -> JoinHandle<()>
                 Ok(_) => {}
                 Err(e) => warn!("Error handling packet: {}", e),
             };
+            packages_received += 1;
+            info!(
+                "Packages received on {} thread: {}",
+                peer_kind, packages_received
+            );
         }
     })
 }
