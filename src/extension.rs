@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::io;
 
 mod filter_type;
+mod fx_type;
 mod system;
 
 lazy_static! {
@@ -15,6 +16,10 @@ lazy_static! {
         m.insert(
             "filter_type",
             Regex::new(r"^/param/./filter/./type").expect("Unable to compile regex."),
+        );
+        m.insert(
+            "fx_type",
+            Regex::new(r"^/param/fx/././type").expect("Unable to compile regex."),
         );
         m
     };
@@ -54,6 +59,15 @@ pub(crate) fn extension_processor(
         .is_match(labeled.message.addr.as_str())
     {
         return filter_type::translate_filter_type(labeled);
+    }
+
+    // Handle filter types
+    if ADDR_PATTERNS
+        .get("fx_type")
+        .unwrap()
+        .is_match(labeled.message.addr.as_str())
+    {
+        return fx_type::translate_fx_type(labeled);
     }
 
     Ok(labeled)
