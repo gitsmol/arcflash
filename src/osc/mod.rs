@@ -1,6 +1,8 @@
 //! Tools for working with OSC. [**sender()**](./fn.sender.html) creates an OSC sender,
 //! [**receiver(port)**](./fn.receiver.html) creates an OSC receiver.
 
+#![allow(dead_code)]
+
 pub use rosc;
 use rosc::OscPacket;
 

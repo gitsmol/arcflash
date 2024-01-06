@@ -1,5 +1,3 @@
-use log::debug;
-
 /*
 pub(crate) fn test_q_all_params() {
     let config_file = PathBuf::from("./config.toml");

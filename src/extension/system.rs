@@ -1,34 +1,55 @@
-use std::io;
+use std::{io, sync::Arc};
 
-use log::debug;
+use log::{debug, warn};
 use rosc::OscType;
 
-use crate::{labeler::LabeledMessage, osc};
+use crate::{config::Config, labeler::LabeledMessage, osc};
 
 /// System messages are addressed to Arcflash i.e. the packet router.
 /// If the packet router runs on the system the instrument runs on, then system
 /// diagnostics from the router can be used to indicate the instruments health too.
 /// System messages are always returned to the the peer they were received from.
-pub fn system_addr(labeled: LabeledMessage) -> Result<LabeledMessage, io::Error> {
-    debug!("Received system message from {}.", labeled.peer_recv);
-
+pub fn system_handler(
+    config: Arc<Config>,
+    labeled: LabeledMessage,
+) -> Result<LabeledMessage, io::Error> {
     // System average load
     if labeled.message.addr.contains("/sys/q/system_load") {
+        let addr = String::from("/sys/system_load");
+
         if let Ok(load) = sys_info::loadavg() {
             let load_message = OscType::String(format!(
                 "1 min: {:.2}, 5 min: {:.2}, 15 min: {:.2}",
                 load.one, load.five, load.fifteen
             ));
-            let addr = String::from("/sys/system_load");
             let return_message = build_return_message(labeled, addr, load_message);
             return Ok(return_message);
         }
     }
 
-    // System average load
+    // Cpu speed
+    if labeled.message.addr.contains("/sys/q/cpu_speed") {
+        let addr = String::from("/sys/cpu_speed");
+
+        match sys_info::cpu_speed() {
+            Ok(cpu_speed) => {
+                let load_message = OscType::String(String::from(format!("{} mhz", cpu_speed)));
+                let return_message = build_return_message(labeled, addr, load_message);
+                return Ok(return_message);
+            }
+            Err(e) => {
+                warn!("Unable to get cpu speed.");
+                let error_msg = OscType::String(String::from(format!("Error: {}", e)));
+                return Ok(build_return_message(labeled, addr, error_msg));
+            }
+        }
+    }
+
+    // Is arcflash enabled?
     if labeled.message.addr.contains("/sys/q/arcflash") {
-        let load_message = OscType::Bool(true);
         let addr = String::from("/sys/arcflash");
+
+        let load_message = OscType::Bool(true);
         let return_message = build_return_message(labeled, addr, load_message);
         return Ok(return_message);
     }
@@ -46,6 +67,8 @@ pub fn system_addr(labeled: LabeledMessage) -> Result<LabeledMessage, io::Error>
     };
     Ok(return_message)
 }
+
+fn get_patches_in_category(category: String) {}
 
 fn build_return_message(labeled: LabeledMessage, addr: String, content: OscType) -> LabeledMessage {
     let mut return_message = labeled.clone();

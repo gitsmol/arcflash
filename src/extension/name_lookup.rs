@@ -1,57 +1,15 @@
 use crate::osc;
 use crate::{labeler::LabeledMessage, peer::PeerKind};
-use lazy_static::lazy_static;
 use log::debug;
+
 use std::collections::HashMap;
 use std::io;
 
-lazy_static! {
-    static ref FX_TYPES: HashMap<i32, String> = {
-        let effects = vec![
-        "Off",
-        "Delay",
-        "Reverb 1",
-        "Phaser",
-        "Rotary",
-        "Distortion",
-        "EQ",
-        "Freq Shift",
-        "Conditioner",
-        "Chorus",
-        "Vocoder",
-        "Reverb 2",
-        "Flanger",
-        "Ring Mod",
-        "Airwindows",
-        "Neuron",
-        "Graphic EQ",
-        "Resonator",
-        "CHOW",
-        "Exciter",
-        "Ensemble",
-        "Combulator",
-        "Nimbus",
-        "Tape",
-        "Treemonster",
-        "Waveshaper",
-        "Mid-Side Tool",
-        "Spring Reverb",
-        "Bonsai",
-        "Audio In",
-    ];
-
-    // Create a HashMap
-    let effects_map: HashMap<i32, String> = effects
-        .iter()
-        .enumerate()
-        .map(|(index, &effect)| (index as i32, effect.to_string()))
-        .collect();
-    effects_map
-    };
-}
-
 /// Translates float to string for filter type
-pub(super) fn translate_fx_type(mut labeled: LabeledMessage) -> Result<LabeledMessage, io::Error> {
+pub(super) fn lookup(
+    mut labeled: LabeledMessage,
+    map: &HashMap<i32, String>,
+) -> Result<LabeledMessage, io::Error> {
     match labeled.peer_send.kind {
         // Translation towards a controller
         PeerKind::Controller => {
@@ -60,9 +18,8 @@ pub(super) fn translate_fx_type(mut labeled: LabeledMessage) -> Result<LabeledMe
                 .args
                 .first()
                 .expect("Can't find first argument!");
-            // Get the key for the fx type
             let arg_value = match arg {
-                osc::Type::Int(res) => *res as i32,
+                osc::Type::Int(res) => *res,
                 osc::Type::Float(res) => *res as i32,
                 osc::Type::String(s) => s.parse::<i32>().unwrap_or_default(),
                 osc::Type::Long(l) => *l as i32,
@@ -73,12 +30,10 @@ pub(super) fn translate_fx_type(mut labeled: LabeledMessage) -> Result<LabeledMe
                     return Ok(labeled);
                 }
             };
-
-            // If we find a value for this key, alter the message.
-            if let Some(value) = FX_TYPES.get(&arg_value) {
+            if let Some(value) = map.get(&arg_value) {
                 debug!("Translated filter type for {}", labeled.peer_send.kind);
                 if let Some(arg) = labeled.message.args.get_mut(0) {
-                    *arg = osc::Type::String(value.to_string());
+                    *arg = osc::Type::String(value.to_owned());
                 };
                 return Ok(labeled);
             }
@@ -97,7 +52,7 @@ pub(super) fn translate_fx_type(mut labeled: LabeledMessage) -> Result<LabeledMe
                     return Ok(labeled);
                 }
             };
-            if let Some(value) = reverse_lookup(arg_value) {
+            if let Some(value) = reverse_lookup(arg_value, map) {
                 debug!("Translated filter type for {}", labeled.peer_send.kind);
                 if let Some(arg) = labeled.message.args.get_mut(0) {
                     *arg = osc::Type::Int(value);
@@ -110,8 +65,8 @@ pub(super) fn translate_fx_type(mut labeled: LabeledMessage) -> Result<LabeledMe
     Ok(labeled)
 }
 
-fn reverse_lookup(value: &String) -> Option<i32> {
-    match FX_TYPES.iter().find(|f| f.1 == value) {
+fn reverse_lookup(value: &String, map: &HashMap<i32, String>) -> Option<i32> {
+    match map.iter().find(|f| f.1 == value) {
         Some(kv_pair) => Some(*kv_pair.0),
         None => None,
     }

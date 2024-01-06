@@ -1,5 +1,4 @@
-use log::{debug, info, warn};
-
+use crate::config::Config;
 use crate::{
     extension::extension_processor,
     labeler::LabeledMessage,
@@ -7,13 +6,8 @@ use crate::{
     peer::{Peer, PeerKind},
     sender::send_message,
 };
+use log::{debug, info, warn};
 use std::{io, sync::Arc, thread::JoinHandle};
-
-use crate::config::Config;
-
-pub fn spawn_worker(worker_rx: Receiver<Packet>) -> JoinHandle<()> {
-    std::thread::spawn(move || {})
-}
 
 pub fn spawn_handler(config: Arc<Config>, peer_kind: PeerKind) -> JoinHandle<()> {
     let (peer_recv, peer_send) = match peer_kind {
@@ -73,7 +67,12 @@ fn packet_sorter(
     for message in packet.into_msgs() {
         // If we don't want to use functional extensions, just pass the message on.
         match config.options.extend {
-            true => message_processor(peer_recv.clone(), peer_send.clone(), message)?,
+            true => message_processor(
+                config.clone(),
+                peer_recv.clone(),
+                peer_send.clone(),
+                message,
+            )?,
             false => send_message(message, peer_send.clone())?,
         }
     }
@@ -82,6 +81,7 @@ fn packet_sorter(
 }
 
 fn message_processor(
+    config: Arc<Config>,
     peer_recv: Arc<Peer>,
     peer_send: Arc<Peer>,
     message: osc::Message,
@@ -90,7 +90,7 @@ fn message_processor(
 
     let labeled_message = LabeledMessage::new(peer_recv, peer_send, message);
 
-    let processed_message = extension_processor(labeled_message)
+    let processed_message = extension_processor(config, labeled_message)
         .map_err(|e| io::Error::new(e.kind(), format!("Error in extension processor: {}", e)))?;
 
     send_message(processed_message.message, processed_message.peer_send)

@@ -1,37 +1,48 @@
+use crate::config::Config;
 use crate::{labeler::LabeledMessage, peer::PeerKind};
-use lazy_static::lazy_static;
 use log::debug;
 use regex::Regex;
 use rosc::OscType;
-use std::collections::HashMap;
 use std::io;
+use std::sync::Arc;
+use std::{collections::HashMap, sync::OnceLock};
 
-mod filter_type;
-mod fx_type;
+use self::name_lookup::lookup;
+use self::names::{filtertypes, fx_types};
+
+mod name_lookup;
+mod names;
 mod system;
 
-lazy_static! {
-    static ref ADDR_PATTERNS: HashMap<&'static str, Regex> = {
+fn address_patterns() -> &'static HashMap<&'static str, Regex> {
+    static HASHMAP: OnceLock<HashMap<&'static str, Regex>> = OnceLock::new();
+    HASHMAP.get_or_init(|| {
         let mut m = HashMap::new();
         m.insert(
             "filter_type",
             Regex::new(r"^/param/./filter/./type").expect("Unable to compile regex."),
         );
         m.insert(
-            "fx_type",
-            Regex::new(r"^/param/fx/././type").expect("Unable to compile regex."),
+            "filter_subtype",
+            Regex::new(r"^/param/./filter/./subtype").expect("Unable to compile regex."),
         );
+        m.insert(
+            "fx_type",
+            Regex::new(r"^/param/fx/.*/./type").expect("Unable to compile regex."),
+        );
+
         m
-    };
+    })
 }
 
 /// Inspect messages and route them accordingly. Returns messages after potential alterations.
 pub(crate) fn extension_processor(
+    config: Arc<Config>,
     mut labeled: LabeledMessage,
 ) -> Result<LabeledMessage, io::Error> {
     // Handle system messages
     if labeled.message.addr.contains("/sys/") {
-        return system::system_addr(labeled);
+        return system::system_handler(config, labeled);
     }
 
     // Handle strings with both real and normalized values
@@ -53,21 +64,21 @@ pub(crate) fn extension_processor(
     }
 
     // Handle filter types
-    if ADDR_PATTERNS
+    if address_patterns()
         .get("filter_type")
         .unwrap()
         .is_match(labeled.message.addr.as_str())
     {
-        return filter_type::translate_filter_type(labeled);
+        return lookup(labeled, filtertypes());
     }
 
-    // Handle filter types
-    if ADDR_PATTERNS
+    // Handle fx types
+    if address_patterns()
         .get("fx_type")
         .unwrap()
         .is_match(labeled.message.addr.as_str())
     {
-        return fx_type::translate_fx_type(labeled);
+        return lookup(labeled, fx_types());
     }
 
     Ok(labeled)
