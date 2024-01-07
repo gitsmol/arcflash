@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = "4.4.12"
+dirs = "5.0.1"
 env_logger = "0.10.1"
 flume = "0.11.0"
 lazy_static = "1.4.0"

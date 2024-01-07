@@ -1,9 +1,8 @@
-use std::{io, sync::Arc};
-
+use crate::{config::Config, labeler::LabeledMessage, osc};
 use log::{debug, warn};
 use rosc::OscType;
-
-use crate::{config::Config, labeler::LabeledMessage, osc};
+use std::{io, sync::Arc};
+mod patchbay;
 
 /// System messages are addressed to Arcflash i.e. the packet router.
 /// If the packet router runs on the system the instrument runs on, then system
@@ -54,6 +53,17 @@ pub fn system_handler(
         return Ok(return_message);
     }
 
+    // Handle loading and saving to patch bays
+    if labeled.message.addr.contains("/sys/patchbay/save") {
+        return patchbay::save_patch(config, labeled);
+    };
+    if labeled.message.addr.contains("/sys/patchbay/load") {
+        return patchbay::load_patch(config, labeled);
+    };
+    if labeled.message.addr.contains("/sys/patchbay/check") {
+        return patchbay::check_patchbay(config, labeled);
+    };
+
     // If we can't match any addresses, return a not found message.
     debug!("Unable to match system message to address.");
     let return_message = LabeledMessage {
@@ -67,8 +77,6 @@ pub fn system_handler(
     };
     Ok(return_message)
 }
-
-fn get_patches_in_category(category: String) {}
 
 fn build_return_message(labeled: LabeledMessage, addr: String, content: OscType) -> LabeledMessage {
     let mut return_message = labeled.clone();

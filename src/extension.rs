@@ -12,6 +12,7 @@ use self::names::{filtertypes, fx_types};
 
 mod name_lookup;
 mod names;
+
 mod system;
 
 fn address_patterns() -> &'static HashMap<&'static str, Regex> {

@@ -1,16 +1,17 @@
 use crate::peer::Peer;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::PathBuf;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Options {
     pub extend: bool,
     pub dryrun: bool,
+    pub patch_cache_path: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Config {
     pub options: Options,
     pub controller: Peer,

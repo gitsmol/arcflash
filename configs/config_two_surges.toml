@@ -1,6 +1,7 @@
 [options]
 extend = true
 dryrun = false
+patch_cache_path = "/Temporary Surge Patches/"
 
 [controller]
 name = "Surge XT"
