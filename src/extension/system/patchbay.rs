@@ -122,8 +122,8 @@ fn guarantee_patch_path(config: Arc<Config>, patchbay: &String) -> io::Result<Pa
                 format!("Failed to create directory: {}", e),
             ));
         }
+        debug!("Created patchbay directory for {:?}", patch_path);
     }
-    debug!("Created patchbay directory for {:?}", patch_path);
 
     Ok(patch_path)
 }
@@ -196,7 +196,7 @@ fn retrieve_patch_filename_from_bay(path: &PathBuf) -> Result<String, io::Error>
         .find_map(|entry| {
             let path = entry.path();
             if path.extension()? == "fxp" {
-                path.file_name()?.to_str().map(String::from)
+                path.file_stem()?.to_str().map(String::from)
             } else {
                 None
             }
