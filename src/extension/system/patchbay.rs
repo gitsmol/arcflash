@@ -47,7 +47,7 @@ pub(super) fn load_patch(
 
     // Now we message Surge to save the current patch to this path.
     let path_with_filename = format!(
-        "{}/{}",
+        "{}{}",
         patch_path.to_string_lossy().to_string(),
         found_patch_name
     );
@@ -70,7 +70,6 @@ pub(super) fn save_patch(
 ) -> Result<LabeledMessage, io::Error> {
     // Create some basic information
     let patchbay = get_patchbay(&labeled)?;
-    debug!("Starting save process for patchbay {}", patchbay);
     let current_patch_name = get_patchname(&labeled)?;
     let patch_path = guarantee_patch_path(config, &patchbay)?;
 
@@ -79,10 +78,12 @@ pub(super) fn save_patch(
 
     // Now we message Surge to save the current patch to this path.
     let path_with_filename = format!(
-        "{}/{}",
+        "{}{}",
         patch_path.to_string_lossy().to_string(),
         current_patch_name
     );
+    debug!("Asking instrument to save patch to {}", path_with_filename);
+
     let message = rosc::OscMessage {
         addr: String::from("/patch/save"),
         args: vec![OscType::String(path_with_filename)],
@@ -111,7 +112,6 @@ fn guarantee_patch_path(config: Arc<Config>, patchbay: &String) -> io::Result<Pa
         path.push(format!("{}/", patchbay));
         path
     };
-    debug!("Path is now {:?}", patch_path);
     // If they don't exist, try to create dir and parent dirs
     // If we fail, error.
     if !patch_path.exists() {
